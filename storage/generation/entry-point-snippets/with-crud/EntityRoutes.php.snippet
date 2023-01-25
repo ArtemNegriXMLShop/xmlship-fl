@@ -3,9 +3,9 @@
 use Illuminate\Support\Facades\Route;
 
 Route::namespace('{extra_namespace}')->prefix('{extra_prefix}')->group(static function () {
-    Route::get('', '{entity_controller}@index')->name('{entity_name}:list');
-    Route::put('', '{entity_controller}@store')->name('{entity_name}:store');
-    Route::get('{{entity_name_singular}}', '{entity_controller}@show')->name('{entity_name}:show');
-    Route::post('{{entity_name_singular}}', '{entity_controller}@update')->name('{entity_name}:update');
-    Route::delete('{{entity_name_singular}}', '{entity_controller}@destroy')->name('{entity_name}:destroy');
+    Route::get('', '{entity_controller}@index')->name('{prefix_route_name}.list');
+    Route::put('', '{entity_controller}@store')->name('{prefix_route_name}.store');
+    Route::get('{{entity_name_singular}_id}', '{entity_controller}@show')->name('{prefix_route_name}.show');
+    Route::post('{{entity_name_singular}_id}', '{entity_controller}@update')->name('{prefix_route_name}.update');
+    Route::delete('{{entity_name_singular}_id}', '{entity_controller}@destroy')->name('{prefix_route_name}.destroy');
 });

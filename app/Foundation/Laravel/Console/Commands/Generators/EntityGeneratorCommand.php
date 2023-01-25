@@ -269,12 +269,16 @@ final class EntityGeneratorCommand extends Command
         string $snippetPath,
         string $entityInput
     ): string {
-        $routesFile = $routesDestination."/".strtolower($entityName).'.php';
+        $routesFile = rtrim($routesDestination, '/').'/'.strtolower($entityName).'.php';
+
         $replacements = [
             'entity_name' => $entityName,
             'extra_prefix' => $this->formatPrefix($entityInput),
             'extra_namespace' => str_replace('/', '\\', $entityInput),
-            'entity_name_singular' => Str::singular($entityName),
+            'prefix_route_name' => implode('.', array_map(function ($item) {
+                return Str::snake(Str::lcfirst($item), '-');
+            }, explode('/', $entityInput))),
+            'entity_name_singular' => Str::lower(Str::singular($entityName)),
             'entity_controller' => $entityName.'Controller',
         ];
 
@@ -316,20 +320,27 @@ final class EntityGeneratorCommand extends Command
         // Presentations
         foreach ($actions as $action) {
             $dir = 'ActionsPresentations';
-            $classname = $entity.ucfirst($action).'Resource';
+            $classname = $entity.ucfirst($action).'Presentation';
             $replacements = [
                 'entity_ns' => $namespace.'\\'.$dir,
-                'classname' => $entity.ucfirst($action).'Resource'
+                'classname' => $entity.ucfirst($action).'Presentation'
             ];
 
             $files[] = $this->createClassFromSnippet(
-                $snippetPath.'/Entity'.ucfirst($action).'Resource.php.snippet',
+                $snippetPath.'/actions/EntityActionPresentation.php.snippet',
                 $path."/".$dir."/".$classname.'.php',
                 $replacements
             );
         }
 
         // Processors
+        $action_templates = [
+            'index' => 'Action',
+            'store' => 'Action',
+            'show' => 'Action-with-id',
+            'update' => 'Action-with-id',
+            'destroy' => 'Action-with-id',
+        ];
         foreach ($actions as $action) {
             $dir = 'ActionsProcessors';
             $classname = $entity.ucfirst($action).'Processor';
@@ -339,7 +350,7 @@ final class EntityGeneratorCommand extends Command
             ];
 
             $files[] = $this->createClassFromSnippet(
-                $snippetPath.'/Entity'.ucfirst($action).'Processor.php.snippet',
+                $snippetPath.'/actions/Entity'.$action_templates[$action].'Processor.php.snippet',
                 $path."/".$dir."/".$classname.'.php',
                 $replacements
             );
@@ -355,7 +366,7 @@ final class EntityGeneratorCommand extends Command
             ];
 
             $files[] = $this->createClassFromSnippet(
-                $snippetPath.'/Entity'.ucfirst($action).'Request.php.snippet',
+                $snippetPath.'/actions/EntityActionRequest.php.snippet',
                 $path."/".$dir."/".$classname.'.php',
                 $replacements
             );

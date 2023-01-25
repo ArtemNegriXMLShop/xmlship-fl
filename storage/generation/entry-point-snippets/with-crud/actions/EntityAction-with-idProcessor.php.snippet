@@ -2,16 +2,13 @@
 
 namespace {entity_ns};
 
+use App\Foundation\Abstracts\Processor;
+use App\Foundation\Interfaces\ProcessorInterface;
 use App\Foundation\Interfaces\RequestInterface;
-use App\Foundation\Laravel\Abstracts\Processor;
 
-class {classname} extends Processor
+class {classname} extends Processor implements ProcessorInterface
 {
-    public function __construct()
-    {
-    }
-
-    public function execute(RequestInterface $request, int|string $id): iterable
+    public function execute(RequestInterface $request, int|string $id): array
     {
         $data = $request->getInput();
 

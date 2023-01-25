@@ -3,7 +3,6 @@
 namespace {entity_ns};
 
 use Illuminate\Http\Response;
-use Illuminate\Contracts\Encryption\DecryptException;
 use Throwable;
 use App\Foundation\Laravel\AppController;
 use {entity_ns}\ActionsProcessors\{
@@ -21,11 +20,11 @@ use {entity_ns}\ActionsRequests\{
     {entity_name}UpdateRequest,
 };
 use {entity_ns}\ActionsPresentations\{
-    {entity_name}DestroyResource,
-    {entity_name}IndexResource,
-    {entity_name}ShowResource,
-    {entity_name}StoreResource,
-    {entity_name}UpdateResource,
+    {entity_name}DestroyPresentation,
+    {entity_name}IndexPresentation,
+    {entity_name}ShowPresentation,
+    {entity_name}StorePresentation,
+    {entity_name}UpdatePresentation,
 };
 use App\Foundation\Laravel\Responses\{
     SuccessResponse,
@@ -34,35 +33,41 @@ use App\Foundation\Laravel\Responses\{
 
 class {classname} extends AppController
 {
-    public function index({entity_name}IndexRequest $request, {entity_name}IndexProcessor $processor): ErrorResponse|SuccessResponse
+    public function index(
+        {entity_name}IndexRequest $request,
+        {entity_name}IndexProcessor $processor,
+        {entity_name}IndexPresentation $presentation): ErrorResponse|SuccessResponse
     {
         try {
-            $data = $processor->execute($request);
-
             return new SuccessResponse(
-                data: new {entity_name}IndexResource($data)
+                $presentation->beautify(
+                    $processor->execute($request)
+                )
             );
         } catch (Throwable $exception) {
             return new ErrorResponse(
-                'An error occurred while trying to list the parcels',
+                'An error occurred while trying to list the {entity_name_singular}s',
                 $exception
             );
         }
     }
 
-    public function store({entity_name}StoreRequest $request, {entity_name}StoreProcessor $processor): ErrorResponse|SuccessResponse
+    public function store(
+        {entity_name}StoreRequest $request,
+        {entity_name}StoreProcessor $processor,
+        {entity_name}StorePresentation $presentation): ErrorResponse|SuccessResponse
     {
         try {
-            $data = $processor->execute($request);
-
             return new SuccessResponse(
-                new {entity_name}StoreResource($data),
+                $presentation->beautify(
+                    $processor->execute($request)
+                ),
                 ['message' => '{entity_name_singular} was stored successfully'],
                 Response::HTTP_CREATED
             );
         } catch (Throwable $exception) {
             return new ErrorResponse(
-                'An error occurred while trying to store the parcel',
+                'An error occurred while trying to store the {entity_name_singular}',
                 $exception
             );
         }
@@ -71,22 +76,18 @@ class {classname} extends AppController
     public function show(
         {entity_name}ShowRequest $request,
         {entity_name}ShowProcessor $processor,
+        {entity_name}ShowPresentation $presentation,
         int|string $id
     ): ErrorResponse|SuccessResponse {
         try {
-            $data = $processor->execute($request, $id);
-
             return new SuccessResponse(
-                data: new {entity_name}ShowResource($data)
-            );
-        } catch (DecryptException $exception) {
-            return new ErrorResponse(
-                message: 'An error occurred while trying to destroy the parcel. Not valid hash.',
-                exception: $exception
+                $presentation->beautify(
+                    $processor->execute($request, $id)
+                )
             );
         } catch (Throwable $exception) {
             return new ErrorResponse(
-                message: 'An error occurred while trying to show the parcel',
+                message: 'An error occurred while trying to show the {entity_name_singular}',
                 exception: $exception
             );
         }
@@ -95,25 +96,20 @@ class {classname} extends AppController
     public function update(
         {entity_name}UpdateRequest $request,
         {entity_name}UpdateProcessor $processor,
+        {entity_name}UpdatePresentation $presentation,
         int|string $id
     ): ErrorResponse|SuccessResponse {
         try {
-            $data = $processor->execute($request, $id);
-
             return new SuccessResponse(
-                data: new {entity_name}UpdateResource($data),
+                data: $presentation->beautify(
+                    $processor->execute($request, $id)
+                ),
                 metadata: ['message' => '{entity_name_singular} was updated successfully',],
-                code: Response::HTTP_CREATED,
-                headers: []
-            );
-        } catch (DecryptException $exception) {
-            return new ErrorResponse(
-                message: 'An error occurred while trying to destroy the parcel. Not valid hash.',
-                exception: $exception
+                code: Response::HTTP_ACCEPTED
             );
         } catch (Throwable $exception) {
             return new ErrorResponse(
-                message: 'An error occurred while trying to update the parcel',
+                message: 'An error occurred while trying to update the {entity_name_singular}',
                 exception: $exception
             );
         }
@@ -122,25 +118,20 @@ class {classname} extends AppController
     public function destroy(
         {entity_name}DestroyRequest $request,
         {entity_name}DestroyProcessor $processor,
+        {entity_name}DestroyPresentation $presentation,
         int|string $id
     ): ErrorResponse|SuccessResponse {
         try {
-            $data = $processor->execute($request, $id);
-
             return new SuccessResponse(
-                data: new {entity_name}DestroyResource($data),
-                metadata: ['message' => '{entity_name_singular} was destroyed successfully',],
-                code: Response::HTTP_CREATED,
-                headers: []
-            );
-        } catch (DecryptException $exception) {
-            return new ErrorResponse(
-                message: 'An error occurred while trying to destroy the parcel. Not valid hash.',
-                exception: $exception
+                $presentation->beautify(
+                    $processor->execute($request, $id)
+                ),
+                ['message' => '{entity_name_singular} was destroyed successfully',],
+                Response::HTTP_ACCEPTED
             );
         } catch (Throwable $exception) {
             return new ErrorResponse(
-                message: 'An error occurred while trying to destroy the parcel',
+                message: 'An error occurred while trying to destroy the {entity_name_singular}',
                 exception: $exception
             );
         }
