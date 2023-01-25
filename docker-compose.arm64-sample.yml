@@ -1,0 +1,152 @@
+version: '3.4'
+
+services:
+  #  node:
+  #    container_name: "xmlship.node"
+  #    hostname: "node"
+  #    image: node:12.18.2-alpine
+  #    #    restart: unless-stopped
+  #    working_dir: /app
+  #    user: "1000"
+  #    volumes:
+  #      - ./:/app
+  #    command: npm run watch
+
+  nginx:
+    container_name: "xmlship.nginx"
+    hostname: "nginx"
+    build: docker/nginx
+    restart: unless-stopped
+    tty: true
+    depends_on:
+      - php-fpm
+    ports:
+      - "88:80"
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    environment:
+      NGINX_HOST_PATH: "/var/www/html/public"
+      NGINX_PHP_FPM_HOST: "xmlship.php-fpm"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "256m"
+        max-file: "10"
+
+  php-fpm:
+    container_name: "xmlship.php-fpm"
+    hostname: "php-fpm"
+    build: docker/php-fpm
+    restart: unless-stopped
+    tty: true
+    depends_on:
+      - mysql
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      APP_BASE_PATH: /var/www/html
+      SUPERVISORD_CONF: "/var/www/html/config/supervisor/*.conf"
+      XDEBUG_CONFIG: "enable=${APP_DEBUG}"
+      COMPOSER_MEMORY_LIMIT: -1
+    # logging:
+    #   driver: "json-file"
+    #   options:
+    #     max-size: "256m"
+    #     max-file: "10"
+
+  mysql:
+    container_name: "xmlship.mysql"
+    hostname: "mysql"
+    image: arm64v8/mysql:8
+    platform: linux/arm64/v8
+    command: --default-authentication-plugin=mysql_native_password
+    tty: true
+    restart: always
+    ports:
+      - "3312:3306"
+    volumes:
+      - xmlship_mysql_data:/var/lib/mysql
+      - ./docker/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    environment:
+      MYSQL_USER: platform_user
+      MYSQL_PASSWORD: platform_pass
+      MYSQL_DATABASE: xmlshop_data
+      MYSQL_ROOT_PASSWORD: rootAdmin
+
+  redis:
+    container_name: "xmlship.redis"
+    hostname: "redis"
+    image: redis
+    restart: unless-stopped
+    volumes:
+      - xmlship_redis_data:/data
+
+  # Database - Mongo DB
+  mongodb:
+    container_name: "xmlship.mongodb"
+    image: mongo:6
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=rootAdmin
+    volumes:
+      - ./docker/mongodb/docker-entrypoint-initdb.d/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - xmlship_mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+
+  # Database Manager. http://localhost:8099/
+  mongo-express:
+    image: mongo-express:latest
+    links:
+      - mongodb
+    depends_on:
+      - mongodb
+    environment:
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_AUTH_USERNAME: root
+      ME_CONFIG_MONGODB_AUTH_PASSWORD: rootAdmin
+    ports:
+      - "8099:8081"
+
+  mailhog:
+    container_name: "xmlship.mailhog"
+    hostname: "mailhog"
+    image: mailhog/mailhog
+    logging:
+      driver: 'none'  # disable saving logs
+    ports:
+      - "2025:1025" # smtp server
+      - "9025:8025" # web ui
+
+#  mariadb:
+#    container_name: "xmlship.mariadb"
+#    hostname: "mariadb"
+#    image: "mariadb:10"
+#    platform: linux/arm64/v8
+#    tty: true
+#    restart: always
+#    ports:
+#      - "3312:3306"
+#    volumes:
+#      #      - /var/docker/mariadb/conf:/etc/mysql
+#      - xmlship_mariadb_data:/var/lib/mysql/data
+#      - xmlship_mariadb_logs:/var/lib/mysql/logs
+#      - ./docker/mariadb/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+#    environment:
+#      MARIADB_USER: platform_user
+#      MARIADB_PASSWORD: platform_pass
+#      MARIADB_DATABASE: xmlshop_data
+#      MARIADB_ROOT_PASSWORD: rootAdmin
+
+volumes:
+  xmlship_mysql_data:
+    driver: local
+  xmlship_redis_data:
+    driver: local
+  xmlship_mongodb_data:
+    driver: local

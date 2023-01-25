@@ -1,0 +1,4 @@
+CREATE DATABASE logistics_demo_data;
+
+GRANT ALL PRIVILEGES ON *.* TO platform_user@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
