@@ -25,20 +25,19 @@ $app = new Illuminate\Foundation\Application(
 | incoming requests to this application from both the web and CLI.
 |
 */
-
 $app->singleton(
-    Illuminate\Contracts\Http\Kernel::class,
-    App\Http\Kernel::class
+    \Illuminate\Contracts\Http\Kernel::class,
+    \App\Foundation\Laravel\Kernels\Http::class
 );
 
 $app->singleton(
-    Illuminate\Contracts\Console\Kernel::class,
-    App\Console\Kernel::class
+    \Illuminate\Contracts\Console\Kernel::class,
+    \App\Foundation\Laravel\Kernels\Console::class
 );
 
 $app->singleton(
-    Illuminate\Contracts\Debug\ExceptionHandler::class,
-    App\Exceptions\Handler::class
+    \Illuminate\Contracts\Debug\ExceptionHandler::class,
+    \App\Foundation\Laravel\ExceptionHandler::class
 );
 
 /*

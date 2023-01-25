@@ -1,0 +1,57 @@
+<?php
+
+namespace {entity_ns};
+
+use App\Foundation\Interfaces\RequestInterface;
+use App\Foundation\Laravel\Abstracts\Request;
+
+class {classname} extends Request implements RequestInterface
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     *
+     * @return bool
+     */
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            //
+        ];
+    }
+
+
+    /**
+     * Get validated and modified input
+     *
+     * @return array
+     */
+    public function getInput(): array
+    {
+        $input = $this->validated();
+
+        return $this->modify($input);
+    }
+
+    /**
+     * Modify input data
+     *
+     * @param  array  $input
+     * @return array
+     */
+    private function modify(array $input): array
+    {
+        //Add your code for manipulation with request data here
+
+        return $input;
+    }
+}

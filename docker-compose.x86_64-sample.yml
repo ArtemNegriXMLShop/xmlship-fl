@@ -1,19 +1,8 @@
 version: '3.4'
 
 services:
-  #  node:
-  #    container_name: "xmlship.node"
-  #    hostname: "node"
-  #    image: node:12.18.2-alpine
-  #    #    restart: unless-stopped
-  #    working_dir: /app
-  #    user: "1000"
-  #    volumes:
-  #      - ./:/app
-  #    command: npm run watch
-
   nginx:
-    container_name: "xmlship.nginx"
+    container_name: "project-fl1.nginx"
     hostname: "nginx"
     build: docker/nginx
     restart: unless-stopped
@@ -21,13 +10,13 @@ services:
     depends_on:
       - php-fpm
     ports:
-      - "88:80"
+      - "888:80"
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
     environment:
       NGINX_HOST_PATH: "/var/www/html/public"
-      NGINX_PHP_FPM_HOST: "xmlship.php-fpm"
+      NGINX_PHP_FPM_HOST: "project-fl1.php-fpm"
     logging:
       driver: "json-file"
       options:
@@ -35,7 +24,7 @@ services:
         max-file: "10"
 
   mysql:
-    container_name: "xmlship.mysql"
+    container_name: "project-fl1.mysql"
     hostname: "mysql"
     image: arm64v8/mysql:8
     platform: linux/arm64/v8
@@ -43,18 +32,18 @@ services:
     tty: true
     restart: always
     ports:
-      - "3312:3306"
+      - "3322:3306"
     volumes:
-      - xmlship_mysql_data:/var/lib/mysql
+      - project_fl1_mysql_data:/var/lib/mysql
       - ./docker/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     environment:
-      MYSQL_USER: platform_user
-      MYSQL_PASSWORD: platform_pass
-      MYSQL_DATABASE: xmlshop_data
+      MYSQL_USER: project_user
+      MYSQL_PASSWORD: project_pass
+      MYSQL_DATABASE: project_data
       MYSQL_ROOT_PASSWORD: rootAdmin
 
   php-fpm:
-    container_name: "xmlship.php-fpm"
+    container_name: "project-fl1.php-fpm"
     hostname: "php-fpm"
     build: docker/php-fpm
     restart: unless-stopped
@@ -71,81 +60,41 @@ services:
       SUPERVISORD_CONF: "/var/www/html/config/supervisor/*.conf"
       XDEBUG_CONFIG: "enable=${APP_DEBUG}"
       COMPOSER_MEMORY_LIMIT: -1
-    # logging:
-    #   driver: "json-file"
-    #   options:
-    #     max-size: "256m"
-    #     max-file: "10"
 
   redis:
-    container_name: "xmlship.redis"
+    container_name: "project-fl1.redis"
     hostname: "redis"
     image: redis
     restart: unless-stopped
     volumes:
-      - xmlship_redis_data:/data
+      - project_fl1_redis_data:/data
 
-  # Database - Mongo DB
   mongodb:
-    container_name: "xmlship.mongodb"
+    container_name: "project-fl1.mongodb"
     image: mongo:6
     environment:
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=rootAdmin
     volumes:
+      - project_fl1_mongodb_data:/data/db
       - ./docker/mongodb/docker-entrypoint-initdb.d/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
-      - xmlship_mongodb_data:/data/db
     ports:
-      - "27017:27017"
-
-  # Database Manager. http://localhost:8099/
-  mongo-express:
-    image: mongo-express:latest
-    links:
-      - mongodb
-    depends_on:
-      - mongodb
-    environment:
-      ME_CONFIG_MONGODB_PORT: 27017
-      ME_CONFIG_MONGODB_SERVER: mongodb
-      ME_CONFIG_MONGODB_AUTH_USERNAME: root
-      ME_CONFIG_MONGODB_AUTH_PASSWORD: rootAdmin
-    ports:
-      - "8099:8081"
+      - "27117:27017"
 
   mailhog:
-    container_name: "xmlship.mailhog"
+    container_name: "project-fl1.mailhog"
     hostname: "mailhog"
     image: mailhog/mailhog
     logging:
       driver: 'none'  # disable saving logs
     ports:
-      - "2025:1025" # smtp server
-      - "9025:8025" # web ui
-
-#  mariadb:
-#    container_name: "xmlship.mariadb"
-#    hostname: "mariadb"
-#    image: "mariadb:10"
-#    tty: true
-#    restart: always
-#    ports:
-#      - "3312:3306"
-#    volumes:
-#      #- /var/docker/mariadb/conf:/etc/mysql
-#      - xmlship_mariadb_data:/var/lib/mysql/data
-#      - xmlship_mariadb_logs:/var/lib/mysql/logs
-#      - ./docker/mariadb/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
-#    environment:
-#      MARIADB_USER: platform_user
-#      MARIADB_PASSWORD: platform_pass
-#      MARIADB_DATABASE: xmlshop_data
-#      MARIADB_ROOT_PASSWORD: rootAdmin
+      - "2125:1025" # smtp server
+      - "9125:8025" # web ui
 
 volumes:
-  xmlship_mysql_data:
+  project_fl1_mysql_data:
     driver: local
-  xmlship_redis_data:
+  project_fl1_redis_data:
     driver: local
-  xmlship_mongodb_data:
+  project_fl1_mongodb_data:
     driver: local
