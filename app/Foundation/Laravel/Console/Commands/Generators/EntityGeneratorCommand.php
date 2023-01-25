@@ -72,31 +72,30 @@ final class EntityGeneratorCommand extends Command
             $destinationPath = $this->composeFullDestination($destinationPath, $entityInput);
             $routesDestination = $this->composeFullDestination($routesDestination, $entityInput, $entityName);
             $namespace = $this->composeFullNamespace($namespace, $entityInput);
-            $snippetsSet = $withCrud
-                ? 'with-crud'
-                : 'default';
-            $snippetsPath = $this->getSnippetsPath($snippetsSet);
-
 
             $files = $withCrud
                 ? $this->createEntityActionFiles(
                     $destinationPath,
                     $namespace,
                     $entityName,
-                    $snippetsPath,
+                    $this->getSnippetsPath('actions'),
                 )
                 : $this->createEntityActionFolders($destinationPath);
+
             $files[] = $this->createEntityController(
                 $destinationPath,
                 $namespace,
                 $entityName,
-                $snippetsPath,
+                $this->getSnippetsPath('controllers'),
+                $withCrud
             );
+
             $files[] = $this->createRoutesFile(
                 $routesDestination,
                 $entityName,
-                $snippetsPath,
-                $entityInput
+                $this->getSnippetsPath('routes'),
+                $entityInput,
+                $withCrud
             );
 
             $this->renderReport($entityInput, $files);
@@ -246,6 +245,7 @@ final class EntityGeneratorCommand extends Command
         string $namespace,
         string $entity,
         string $snippetPath,
+        bool $withCrud
     ): string {
         $className = $entity.'Controller';
         $filePath = $path."/".$className.".php";
@@ -256,8 +256,9 @@ final class EntityGeneratorCommand extends Command
             'classname' => $entity.'Controller',
         ];
 
+        $snippet = $withCrud ? 'EntityController-with-crud.php.snippet' : 'EntityController-empty.php.snippet';
         return $this->createClassFromSnippet(
-            $snippetPath."/EntityController.php.snippet",
+            $snippetPath.'/'.$snippet,
             $filePath,
             $replacements
         );
@@ -267,7 +268,8 @@ final class EntityGeneratorCommand extends Command
         string $routesDestination,
         string $entityName,
         string $snippetPath,
-        string $entityInput
+        string $entityInput,
+        bool $withCrud
     ): string {
         $routesFile = rtrim($routesDestination, '/').'/'.strtolower($entityName).'.php';
 
@@ -282,8 +284,9 @@ final class EntityGeneratorCommand extends Command
             'entity_controller' => $entityName.'Controller',
         ];
 
+        $snippet = $withCrud ? 'EntityRoutes-with-crud.php.snippet' : 'EntityRoutes-empty.php.snippet';
         return $this->createClassFromSnippet(
-            $snippetPath.'/EntityRoutes.php.snippet',
+            $snippetPath.'/'.$snippet,
             $routesFile,
             $replacements
         );
@@ -327,7 +330,7 @@ final class EntityGeneratorCommand extends Command
             ];
 
             $files[] = $this->createClassFromSnippet(
-                $snippetPath.'/actions/EntityActionPresentation.php.snippet',
+                $snippetPath.'/EntityActionPresentation.php.snippet',
                 $path."/".$dir."/".$classname.'.php',
                 $replacements
             );
@@ -350,7 +353,7 @@ final class EntityGeneratorCommand extends Command
             ];
 
             $files[] = $this->createClassFromSnippet(
-                $snippetPath.'/actions/Entity'.$action_templates[$action].'Processor.php.snippet',
+                $snippetPath.'/Entity'.$action_templates[$action].'Processor.php.snippet',
                 $path."/".$dir."/".$classname.'.php',
                 $replacements
             );
@@ -366,7 +369,7 @@ final class EntityGeneratorCommand extends Command
             ];
 
             $files[] = $this->createClassFromSnippet(
-                $snippetPath.'/actions/EntityActionRequest.php.snippet',
+                $snippetPath.'/EntityActionRequest.php.snippet',
                 $path."/".$dir."/".$classname.'.php',
                 $replacements
             );
