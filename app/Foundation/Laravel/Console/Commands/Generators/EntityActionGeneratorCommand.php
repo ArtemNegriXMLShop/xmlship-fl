@@ -108,40 +108,9 @@ final class EntityActionGeneratorCommand extends Command
                 }
             }
 
-//            $files = [];
             $files = $this->generateActionFiles($entityName, $action, $namespace, $destinationPath);
             $this->addActionToController($entityName, $action, $namespace, $destinationPath);
             $this->addActionRoute($entityName, $action, $namespace, $routesDestination, $entityInput);
-
-
-
-
-
-
-//            $files = $withCrud
-//                ? $this->createEntityActionFiles(
-//                    $destinationPath,
-//                    $namespace,
-//                    $entityName,
-//                    $this->getSnippetsPath('actions'),
-//                )
-//                : $this->createEntityActionFolders($destinationPath);
-//
-//            $files[] = $this->createEntityController(
-//                $destinationPath,
-//                $namespace,
-//                $entityName,
-//                $this->getSnippetsPath('controllers'),
-//                $withCrud
-//            );
-//
-//            $files[] = $this->createRoutesFile(
-//                $routesDestination,
-//                $entityName,
-//                $this->getSnippetsPath('routes'),
-//                $entityInput,
-//                $withCrud
-//            );
 
             $this->renderReport($entityInput, $files);
 
@@ -365,32 +334,6 @@ final class EntityActionGeneratorCommand extends Command
             ->map(fn(string $fragment) => ucfirst($fragment))
             ->join("/");
 
-        $fullDestination = $this->composeFullDestination($destinationPath, $entityName);
-
-//        if (!file_exists($fullDestination)) {
-//            return $entityName;
-//        }
-//
-//        if (!is_dir($fullDestination)) {
-//            throw new \Exception(
-//                sprintf(
-//                    "Cannot create entity '%s'. Destination path '%s' already exists and it is a file",
-//                    $entityName,
-//                    $fullDestination
-//                )
-//            );
-//        }
-//
-//        if (!$this->isDirEmpty($fullDestination)) {
-//            throw new \Exception(
-//                sprintf(
-//                    "Cannot create entity '%s'. Destination path '%s' is a non-empty folder",
-//                    $entityName,
-//                    $fullDestination
-//                )
-//            );
-//        }
-
         return $entityName;
     }
 
@@ -436,132 +379,6 @@ final class EntityActionGeneratorCommand extends Command
     private function composeFullNamespace(string $baseNamespace, string $entityInput): string
     {
         return $baseNamespace."\\".str_replace("/", "\\", $entityInput);
-    }
-
-    private function createEntityController(
-        string $path,
-        string $namespace,
-        string $entity,
-        string $snippetPath,
-        bool $withCrud
-    ): string {
-        $className = $entity.'Controller';
-        $filePath = $path."/".$className.".php";
-        $replacements = [
-            'entity_ns' => $namespace,
-            'entity_name' => $entity,
-            'entity_name_singular' => Str::singular($entity),
-            'classname' => $entity.'Controller',
-        ];
-
-        $snippet = $withCrud ? 'EntityController-with-crud.php.snippet' : 'EntityController-empty.php.snippet';
-        return $this->createClassFromSnippet(
-            $snippetPath.'/'.$snippet,
-            $filePath,
-            $replacements
-        );
-    }
-
-    private function createRoutesFile(
-        string $routesDestination,
-        string $entityName,
-        string $snippetPath,
-        string $entityInput,
-        bool $withCrud
-    ): string {
-        $routesFile = rtrim($routesDestination, '/').'/'.strtolower($entityName).'.php';
-
-        $replacements = [
-            'entity_name' => $entityName,
-            'extra_prefix' => $this->formatPrefix($entityInput),
-            'extra_namespace' => str_replace('/', '\\', $entityInput),
-            'prefix_route_name' => implode('.', array_map(function ($item) {
-                return Str::snake(Str::lcfirst($item), '-');
-            }, explode('/', $entityInput))),
-            'entity_name_singular' => Str::lower(Str::singular($entityName)),
-            'entity_controller' => $entityName.'Controller',
-        ];
-
-        $snippet = $withCrud ? 'EntityRoutes-with-crud.php.snippet' : 'EntityRoutes-empty.php.snippet';
-        return $this->createClassFromSnippet(
-            $snippetPath.'/'.$snippet,
-            $routesFile,
-            $replacements
-        );
-    }
-
-    private function createEntityActionFolders(string $destinationFolder): array
-    {
-        $folders = [
-            $destinationFolder."/ActionsPresentations",
-            $destinationFolder."/ActionsProcessors",
-            $destinationFolder."/ActionsRequests",
-        ];
-
-        foreach ($folders as $folder) {
-            if (mkdir(directory: $folder, recursive: true)) {
-                continue;
-            }
-
-            throw new \Exception(sprintf("Cannot create folder [%s]", $folder));
-        }
-
-        return $folders;
-    }
-
-    private function createEntityActionFiles(
-        string $path,
-        string $namespace,
-        string $entity,
-        string $snippetPath,
-    ): array {
-        $files = [];
-        $actions = ['index', 'store', 'show', 'update', 'destroy'];
-
-        // Presentations
-        foreach ($actions as $action) {
-            $files[] = $this->createActionPresentation($entity, $action, $namespace, $snippetPath, $path);
-        }
-
-        // Processors
-        $action_templates = [
-            'index' => 'Action',
-            'store' => 'Action',
-            'show' => 'Action-with-id',
-            'update' => 'Action-with-id',
-            'destroy' => 'Action-with-id',
-        ];
-        foreach ($actions as $action) {
-            $snippetNameMod = $action_templates[$action];
-            $files[] = $this->createActionProcessor($entity, $action, $namespace, $snippetPath, $path, $snippetNameMod);
-        }
-
-        // Requests
-        foreach ($actions as $action) {
-            $files[] = $this->createActionRequest($entity, $action, $namespace, $snippetPath, $path);
-        }
-
-        return $files;
-    }
-
-    private function isDirEmpty(string $dirPath): bool
-    {
-        $dir = opendir($dirPath);
-        $entry = readdir($dir);
-
-        while (false !== $entry) {
-            if ($entry !== "." && $entry !== "..") {
-                closedir($dir);
-
-                return false;
-            }
-
-            $entry = readdir($dir);
-        }
-
-        closedir($dir);
-
-        return true;
     }
 
     private function getSnippetsPath(string $snippetsSet): string
@@ -630,16 +447,6 @@ final class EntityActionGeneratorCommand extends Command
         if (false === file_put_contents($filepath, $content)) {
             throw new \Exception(sprintf("Cannot create file [%s]", $filepath));
         }
-    }
-
-    private function formatPrefix(string $entityInput): string
-    {
-        $segments = [];
-        foreach (explode('/', $entityInput) as $segment) {
-            $segments[] = Str::snake(Str::lcfirst($segment), '-');
-        }
-
-        return implode('/', $segments);
     }
 
     private function createActionPresentation(
