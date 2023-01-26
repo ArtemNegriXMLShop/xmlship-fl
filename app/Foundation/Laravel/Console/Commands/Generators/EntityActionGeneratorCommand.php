@@ -2,7 +2,9 @@
 
 namespace App\Foundation\Laravel\Console\Commands\Generators;
 
+use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Str;
@@ -46,6 +48,7 @@ final class EntityActionGeneratorCommand extends Command
 
         $this->files = $filesystem;
     }
+
     /**
      * Execute the console command.
      *
@@ -83,9 +86,8 @@ final class EntityActionGeneratorCommand extends Command
             $namespace = $this->composeFullNamespace($namespace, $entityInput);
 
             if (!$this->controllerExists($destinationPath, $entityName)) {
-                if (!$this->confirm(
-                    sprintf("Controller doesn't exist. Should create Controller with name %s?", $entityName)
-                )) {
+                $this->warn(sprintf("Controller for %s doesn't exist.", $entityName));
+                if (!$this->confirm(sprintf("Create controller for %s?", $entityName))) {
                     return self::SUCCESS;
                 }
 
@@ -115,7 +117,7 @@ final class EntityActionGeneratorCommand extends Command
             $this->renderReport($entityInput, $files);
 
             return self::SUCCESS;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->output->error($e->getMessage());
         } catch (\Throwable $e) {
             $this->output->error(sprintf("Unhandled error: %s", $e->getMessage()));
@@ -130,8 +132,7 @@ final class EntityActionGeneratorCommand extends Command
 
     private function controllerExists(string $path, string $entityName): bool
     {
-        $controllerFile = $path . '/' . $entityName . 'Controller.php';
-        return $this->files->isFile($controllerFile);
+        return $this->files->isFile($this->getControllerFile($path, $entityName));
     }
 
     private function getControllerFile(string $path, string $entity): string
@@ -160,57 +161,54 @@ final class EntityActionGeneratorCommand extends Command
         return $files;
     }
 
+    /**
+     * @throws FileNotFoundException
+     * @throws Exception
+     */
     private function addActionToController(
         string $entity,
         string $action,
         string $namespace,
         string $path
     ): void {
-        // read controller code
-        $controller = $this->files->get($this->getControllerFile($path, $entity));
+        $controller = $this->readController($path, $entity);
 
-        // read action snippet
-        $snippetPath = $this->getSnippetsPath('controllers');
-        $snippetFile = $snippetPath . '/EntityControllerAction.php.snippet';
-        $snippet = $this->files->get($snippetFile);
+        $actionStub = $this->fillSnippet(
+            $this->getActionSnippet(),
+            [
+                'entity_ns' => $namespace,
+                'entity_name' => $entity,
+                'entity_name_singular' => Str::singular($entity),
+                'action_name' => $action,
+                'action_method_name' => lcfirst($action),
+            ]
+        );
 
-        // translate placeholders
-        $actionStub = strtr($snippet, [
-            '{entity_ns}' => $namespace,
-            '{entity_name}' => $entity,
-            '{entity_name_singular}' => Str::singular($entity),
-            '{action_name}' => $action,
-            '{action_method_name}' => lcfirst($action),
-        ]);
-
-        // split imports and action method
-        if (strpos($actionStub, '{split}')) {
-            list($actionImports, $actionMethod) = explode('{split}', $actionStub, 2);
-        } else {
-            $actionImports = '';
-            $actionMethod = $actionStub;
-        }
-        $actionImports = "\n" . trim($actionImports);
-        $actionMethod = "\n    " . trim($actionMethod) . "\n";
+        // split action imports and method code
+        $parts = explode('{split}', $actionStub, 2);
+        [$actionImports, $actionMethod] = count($parts) == 2 ? $parts : ['', $actionStub];
 
         // insert imports into controller
         if (!preg_match('/^(.*?(\s+use\b[^;]+;)+)/s', $controller, $match)) {
-            throw new \Exception('Imports not found in the controller');
+            throw new Exception('Imports not found in the controller');
         }
         $importsLen = strlen($match[1]);
-        $controller = substr_replace($controller, $actionImports, $importsLen, 0);
+        $controller = substr_replace($controller, "\n" . trim($actionImports), $importsLen, 0);
 
         // insert method into controller
         $classEndPos = strrpos($controller, '}', -1);
         if ($classEndPos === false) {
-            throw new \Exception('Class ending not found in the controller');
+            throw new Exception('Class ending not found in the controller');
         }
-        $controller = substr_replace($controller, $actionMethod, $classEndPos, 0);
+        $controller = substr_replace($controller, "\n    " . trim($actionMethod) . "\n", $classEndPos, 0);
 
-        // save controller
-        $this->files->put($this->getControllerFile($path, $entity), $controller);
+        $this->saveController($path, $entity, $controller);
     }
 
+    /**
+     * @throws FileNotFoundException
+     * @throws Exception
+     */
     private function addActionRoute(
         string $entity,
         string $action,
@@ -235,24 +233,47 @@ final class EntityActionGeneratorCommand extends Command
 
         $insertAtPos = strrpos($routes, '}', -1);
         if ($insertAtPos === false) {
-            throw new \Exception('Closing curly brace not found in the routes');
+            throw new Exception('Closing curly brace not found in the routes');
         }
         $routes = substr_replace($routes, "\n    " . trim($actionRoute) . "\n", $insertAtPos, 0);
 
         $this->saveRoutes($path, $entity, $routes);
     }
 
-    private function readRoutes($path, $entity)
+    /**
+     * @throws FileNotFoundException
+     */
+    private function readController(string $path, string $entity): string
+    {
+        return $this->files->get($this->getControllerFile($path, $entity));
+    }
+
+    private function saveController(string $path, string $entity, $controller): void
+    {
+        $this->files->put($this->getControllerFile($path, $entity), $controller);
+    }
+
+    /**
+     * @throws FileNotFoundException
+     */
+    private function readRoutes($path, $entity): string
     {
         return $this->files->get($this->getRoutesFile($path, $entity));
     }
 
-    private function saveRoutes($path, $entity, $routes)
+    private function saveRoutes($path, $entity, $routes): void
     {
         $this->files->put($this->getRoutesFile($path, $entity), $routes);
     }
 
-    private function getRoutesActionSnippet()
+    private function getActionSnippet(): string
+    {
+        $path = $this->getSnippetsPath('controllers');
+        $file = $path . '/EntityControllerAction.php.snippet';
+        return $this->files->get($file);
+    }
+
+    private function getRoutesActionSnippet(): string
     {
         $path = $this->getSnippetsPath('routes');
         $file = $path . '/EntityRoutesAction.php.snippet';
@@ -320,7 +341,7 @@ final class EntityActionGeneratorCommand extends Command
 
 
         if (!preg_match('/[a-zA-Z\/]/', $entityName)) {
-            throw new \Exception(
+            throw new Exception(
                 sprintf(
                     "Invalid entity name '%s'. Entity name can contain uppercase, lowercase characters and '/'",
                     $entityName
@@ -388,7 +409,7 @@ final class EntityActionGeneratorCommand extends Command
         $snippetsPath = "/".trim($snippetsPath, "/");
 
         if (!is_dir($snippetsPath)) {
-            throw new \Exception(
+            throw new Exception(
                 sprintf("Cannot find snippets in '%s'", $snippetsPath)
             );
         }
@@ -411,7 +432,7 @@ final class EntityActionGeneratorCommand extends Command
     private function readSnippet(string $snippetFile): string
     {
         if (!file_exists($snippetFile)) {
-            throw new \Exception(
+            throw new Exception(
                 sprintf("Entity snippet not found [%s]", $snippetFile)
             );
         }
@@ -434,18 +455,18 @@ final class EntityActionGeneratorCommand extends Command
         $path = dirname($filepath);
 
         if (!file_exists($path) && !mkdir(directory: $path, recursive: true)) {
-            throw new \Exception(
+            throw new Exception(
                 sprintf("Cannot create entity directory '%s'", $path)
             );
         }
 
         // don't overwrite existing file to not erase user code
         if ($this->files->isFile($filepath)) {
-            throw new \Exception(sprintf("File already exists [%s]", $filepath));
+            throw new Exception(sprintf("File already exists [%s]", $filepath));
         }
 
         if (false === file_put_contents($filepath, $content)) {
-            throw new \Exception(sprintf("Cannot create file [%s]", $filepath));
+            throw new Exception(sprintf("Cannot create file [%s]", $filepath));
         }
     }
 
