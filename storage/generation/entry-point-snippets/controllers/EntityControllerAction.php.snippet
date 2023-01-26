@@ -1,0 +1,24 @@
+use {entity_ns}\ActionsProcessors\{entity_name}{action_name}Processor;
+use {entity_ns}\ActionsRequests\{entity_name}{action_name}Request;
+use {entity_ns}\ActionsPresentations\{entity_name}{action_name}Presentation;
+
+{split}
+
+    public function {action_method_name}(
+        {entity_name}{action_name}Request $request,
+        {entity_name}{action_name}Processor $processor,
+        {entity_name}{action_name}Presentation $presentation
+    ): ErrorResponse|SuccessResponse {
+        try {
+            return new SuccessResponse(
+                $presentation->beautify(
+                    $processor->execute($request)
+                )
+            );
+        } catch (Throwable $exception) {
+            return new ErrorResponse(
+                'An error occurred while trying to perform {action_name} on {entity_name_singular}',
+                $exception
+            );
+        }
+    }
