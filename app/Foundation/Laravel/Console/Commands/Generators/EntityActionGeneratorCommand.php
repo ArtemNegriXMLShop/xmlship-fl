@@ -42,6 +42,14 @@ final class EntityActionGeneratorCommand extends Command
      */
     protected $description = 'Generate entity action';
 
+    private bool $isExternal;
+    private string $entityInput;
+    private string $entity;
+    private string $action;
+    private string $path;
+    private string $routesPath;
+    private string $namespace;
+
     public function __construct(Filesystem $filesystem)
     {
         parent::__construct();
@@ -62,32 +70,11 @@ final class EntityActionGeneratorCommand extends Command
         }
 
         try {
-            $isExternal = $this->option(self::OPTION_IS_EXTERNAL);
+            $this->initFromArguments();
 
-            $namespace = $isExternal
-                ? 'App\\EntryPoints\\'.self::NS_HTTP_EXTERNAL
-                : 'App\\EntryPoints\\'.self::NS_HTTP_DEFAULT;
-            $destinationPath = $isExternal
-                ? app_path('EntryPoints/'.self::NS_HTTP_EXTERNAL)
-                : app_path('EntryPoints/'.self::NS_HTTP_DEFAULT);
-            $routesDestination = $isExternal
-                ? app_path('EntryPoints/Routes/'.self::ROUTES_PREFIX_EXTERNAL)
-                : app_path('EntryPoints/Routes/'.self::ROUTES_PREFIX_DEFAULT);
-
-            $entityInput = $this->validatedEntityName($destinationPath);
-            $entityName = str_contains($entityInput, '/')
-                ? basename($entityInput)
-                : $entityInput;
-
-            $action = $this->validateActionName($this->argument(self::ARG_ACTION));
-
-            $destinationPath = $this->composeFullDestination($destinationPath, $entityInput);
-            $routesDestination = $this->composeFullDestination($routesDestination, $entityInput, $entityName);
-            $namespace = $this->composeFullNamespace($namespace, $entityInput);
-
-            if (!$this->controllerExists($destinationPath, $entityName)) {
-                $this->warn(sprintf("Controller for %s doesn't exist.", $entityName));
-                if (!$this->confirm(sprintf("Create controller for %s?", $entityName))) {
+            if (!$this->controllerExists()) {
+                $this->warn(sprintf("Controller for %s doesn't exist.", $this->entity));
+                if (!$this->confirm(sprintf("Create controller for %s?", $this->entity))) {
                     return self::SUCCESS;
                 }
 
@@ -95,26 +82,20 @@ final class EntityActionGeneratorCommand extends Command
                 $returnCode = $this->call(
                     'make:entry-point',
                     [
-                        self::ARG_ENTITY => $entityInput,
-                        '--' . self::OPTION_IS_EXTERNAL => $isExternal,
+                        self::ARG_ENTITY => $this->entityInput,
+                        '--' . self::OPTION_IS_EXTERNAL => $this->isExternal,
                     ]
                 );
                 if ($returnCode) {
                     return $returnCode;
                 }
-
-                // double check
-                if (!$this->controllerExists($destinationPath, $entityName)) {
-                    $this->error("Something went wrong, controller wasn't created");
-                    return self::FAILURE;
-                }
             }
 
-            $files = $this->generateActionFiles($entityName, $action, $namespace, $destinationPath);
-            $this->addActionToController($entityName, $action, $namespace, $destinationPath);
-            $this->addActionRoute($entityName, $action, $namespace, $routesDestination, $entityInput);
+            $files = $this->generateActionFiles();
+            $this->addActionToController();
+            $this->addActionRoute();
 
-            $this->renderReport($entityInput, $files);
+            $this->renderReport($this->entityInput, $files);
 
             return self::SUCCESS;
         } catch (Exception $e) {
@@ -130,33 +111,57 @@ final class EntityActionGeneratorCommand extends Command
         return self::FAILURE;
     }
 
-    private function controllerExists(string $path, string $entityName): bool
+    private function initFromArguments()
     {
-        return $this->files->isFile($this->getControllerFile($path, $entityName));
+        $this->isExternal = $this->option(self::OPTION_IS_EXTERNAL);
+
+        $namespace = $this->isExternal
+            ? 'App\\EntryPoints\\'.self::NS_HTTP_EXTERNAL
+            : 'App\\EntryPoints\\'.self::NS_HTTP_DEFAULT;
+        $destinationPath = $this->isExternal
+            ? app_path('EntryPoints/'.self::NS_HTTP_EXTERNAL)
+            : app_path('EntryPoints/'.self::NS_HTTP_DEFAULT);
+        $routesDestination = $this->isExternal
+            ? app_path('EntryPoints/Routes/'.self::ROUTES_PREFIX_EXTERNAL)
+            : app_path('EntryPoints/Routes/'.self::ROUTES_PREFIX_DEFAULT);
+
+        $this->entityInput = $this->validatedEntityName();
+        $this->entity = str_contains($this->entityInput, '/')
+            ? basename($this->entityInput)
+            : $this->entityInput;
+
+        $this->action = $this->validateActionName($this->argument(self::ARG_ACTION));
+
+        $this->path = $this->composeFullDestination($destinationPath, $this->entityInput);
+        $this->routesPath = $this->composeFullDestination($routesDestination, $this->entityInput, $this->entity);
+        $this->namespace = $this->composeFullNamespace($namespace, $this->entityInput);
     }
 
-    private function getControllerFile(string $path, string $entity): string
+    private function controllerExists(): bool
     {
-        return $path . '/' . $entity . 'Controller.php';
+        return $this->files->isFile($this->getControllerFile());
     }
 
-    private function getRoutesFile(string $path, string $entity): string
+    private function getControllerFile(): string
     {
-        return $path . '/' . strtolower($entity) . '.php';
+        return $this->path . '/' . $this->entity . 'Controller.php';
     }
 
-    private function generateActionFiles(
-        string $entity,
-        string $action,
-        string $namespace,
-        string $path
-    ): array {
+    private function getRoutesFile(): string
+    {
+        return $this->routesPath . '/' . strtolower($this->entity) . '.php';
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function generateActionFiles(): array
+    {
         $files = [];
 
-        $snippetPath = $this->getSnippetsPath('actions');
-        $files[] = $this->createActionPresentation($entity, $action, $namespace, $snippetPath, $path);
-        $files[] = $this->createActionProcessor($entity, $action, $namespace, $snippetPath, $path);
-        $files[] = $this->createActionRequest($entity, $action, $namespace, $snippetPath, $path);
+        $files[] = $this->createActionPresentation();
+        $files[] = $this->createActionProcessor();
+        $files[] = $this->createActionRequest();
 
         return $files;
     }
@@ -165,22 +170,18 @@ final class EntityActionGeneratorCommand extends Command
      * @throws FileNotFoundException
      * @throws Exception
      */
-    private function addActionToController(
-        string $entity,
-        string $action,
-        string $namespace,
-        string $path
-    ): void {
-        $controller = $this->readController($path, $entity);
+    private function addActionToController(): void
+    {
+        $controller = $this->readController();
 
-        $actionStub = $this->fillSnippet(
+        $actionStub = $this->processSnippet(
             $this->getActionSnippet(),
             [
-                'entity_ns' => $namespace,
-                'entity_name' => $entity,
-                'entity_name_singular' => Str::singular($entity),
-                'action_name' => $action,
-                'action_method_name' => lcfirst($action),
+                'entity_ns' => $this->namespace,
+                'entity_name' => $this->entity,
+                'entity_name_singular' => Str::singular($this->entity),
+                'action_name' => $this->action,
+                'action_method_name' => lcfirst($this->action),
             ]
         );
 
@@ -202,68 +203,64 @@ final class EntityActionGeneratorCommand extends Command
         }
         $controller = substr_replace($controller, "\n    " . trim($actionMethod) . "\n", $classEndPos, 0);
 
-        $this->saveController($path, $entity, $controller);
+        $this->saveController($controller);
     }
 
     /**
      * @throws FileNotFoundException
      * @throws Exception
      */
-    private function addActionRoute(
-        string $entity,
-        string $action,
-        string $namespace,
-        string $path,
-        string $entityInput
-    ): void {
-        $actionRoute = $this->fillSnippet(
+    private function addActionRoute(): void
+    {
+        $actionRoute = $this->processSnippet(
             $this->getRoutesActionSnippet(),
             [
-                'uri' => Str::snake($action, '-'),
-                'entity_controller' => $entity . 'Controller',
-                'action_method' => lcfirst($action),
+                'uri' => Str::snake($this->action, '-'),
+                'entity_controller' => $this->entity . 'Controller',
+                'action_method' => lcfirst($this->action),
                 'route_name' => implode('.', array_map(
                     fn ($item) => Str::snake($item, '-'),
-                    explode('/', $entityInput . '/' . $action)
+                    explode('/', $this->entityInput . '/' . $this->action)
                 )),
             ]
         );
 
-        $routes = $this->readRoutes($path, $entity);
+        $routes = $this->readRoutes();
 
-        $insertAtPos = strrpos($routes, '}', -1);
-        if ($insertAtPos === false) {
+        // insert route before last curly brace in routes
+        $lastBracePos = strrpos($routes, '}', -1);
+        if ($lastBracePos === false) {
             throw new Exception('Closing curly brace not found in the routes');
         }
-        $routes = substr_replace($routes, "\n    " . trim($actionRoute) . "\n", $insertAtPos, 0);
+        $routes = substr_replace($routes, "    " . trim($actionRoute) . "\n", $lastBracePos, 0);
 
-        $this->saveRoutes($path, $entity, $routes);
+        $this->saveRoutes($routes);
     }
 
     /**
      * @throws FileNotFoundException
      */
-    private function readController(string $path, string $entity): string
+    private function readController(): string
     {
-        return $this->files->get($this->getControllerFile($path, $entity));
+        return $this->files->get($this->getControllerFile());
     }
 
-    private function saveController(string $path, string $entity, $controller): void
+    private function saveController($controller): void
     {
-        $this->files->put($this->getControllerFile($path, $entity), $controller);
+        $this->files->put($this->getControllerFile(), $controller);
     }
 
     /**
      * @throws FileNotFoundException
      */
-    private function readRoutes($path, $entity): string
+    private function readRoutes(): string
     {
-        return $this->files->get($this->getRoutesFile($path, $entity));
+        return $this->files->get($this->getRoutesFile());
     }
 
-    private function saveRoutes($path, $entity, $routes): void
+    private function saveRoutes($routes): void
     {
-        $this->files->put($this->getRoutesFile($path, $entity), $routes);
+        $this->files->put($this->getRoutesFile(), $routes);
     }
 
     private function getActionSnippet(): string
@@ -278,15 +275,6 @@ final class EntityActionGeneratorCommand extends Command
         $path = $this->getSnippetsPath('routes');
         $file = $path . '/EntityRoutesAction.php.snippet';
         return $this->files->get($file);
-    }
-
-    private function fillSnippet(string $snippet, array $replacements): string
-    {
-        $replacements = array_combine(
-            array_map(fn($key) => '{' . $key . '}', array_keys($replacements)),
-            $replacements
-        );
-        return strtr($snippet, $replacements);
     }
 
     private function renderReport(string $entity, array $files): void
@@ -331,16 +319,14 @@ final class EntityActionGeneratorCommand extends Command
     /**
      * Parses entity name and returns if valid
      *
-     * @param  string  $destinationPath
      * @return string
+     * @throws Exception
      */
-    private function validatedEntityName(string $destinationPath): string
+    private function validatedEntityName(): string
     {
-        $entityName = ucfirst($this->argument(self::ARG_ENTITY))
-            ?: ucfirst($this->ask("How to name entity?"));
+        $entityName = $this->argument(self::ARG_ENTITY);
 
-
-        if (!preg_match('/[a-zA-Z\/]/', $entityName)) {
+        if (preg_match('/[^a-zA-Z\/]/', $entityName)) {
             throw new Exception(
                 sprintf(
                     "Invalid entity name '%s'. Entity name can contain uppercase, lowercase characters and '/'",
@@ -470,66 +456,62 @@ final class EntityActionGeneratorCommand extends Command
         }
     }
 
-    private function createActionPresentation(
-        string $entity,
-        string $action,
-        string $namespace,
-        string $snippetPath,
-        string $path
-    ): string {
+    /**
+     * @throws Exception
+     */
+    private function createActionPresentation(): string
+    {
         $dir = 'ActionsPresentations';
-        $classname = $entity . ucfirst($action) . 'Presentation';
+        $classname = $this->entity . $this->action . 'Presentation';
         $replacements = [
-            'entity_ns' => $namespace . '\\' . $dir,
-            'classname' => $entity . ucfirst($action) . 'Presentation'
+            'entity_ns' => $this->namespace . '\\' . $dir,
+            'classname' => $classname
         ];
 
+        $snippetPath = $this->getSnippetsPath('actions');
         return $this->createClassFromSnippet(
             $snippetPath . '/EntityActionPresentation.php.snippet',
-            $path . "/" . $dir . "/" . $classname . '.php',
+            $this->path . '/' . $dir . '/' . $classname . '.php',
             $replacements
         );
     }
 
-    private function createActionProcessor(
-        string $entity,
-        string $action,
-        string $namespace,
-        string $snippetPath,
-        string $path,
-        string $snippetActionName = 'Action',
-    ): string {
+    /**
+     * @throws Exception
+     */
+    private function createActionProcessor(string $snippetActionName = 'Action'): string
+    {
         $dir = 'ActionsProcessors';
-        $classname = $entity.ucfirst($action).'Processor';
+        $classname = $this->entity . $this->action . 'Processor';
         $replacements = [
-            'entity_ns' => $namespace.'\\'.$dir,
-            'classname' => $entity.ucfirst($action).'Processor'
+            'entity_ns' => $this->namespace . '\\' . $dir,
+            'classname' => $classname
         ];
 
+        $snippetPath = $this->getSnippetsPath('actions');
         return $this->createClassFromSnippet(
-            $snippetPath.'/Entity'.$snippetActionName.'Processor.php.snippet',
-            $path."/".$dir."/".$classname.'.php',
+            $snippetPath . '/Entity' . $snippetActionName . 'Processor.php.snippet',
+            $this->path . '/' . $dir . '/' . $classname . '.php',
             $replacements
         );
     }
 
-    private function createActionRequest(
-        string $entity,
-        string $action,
-        string $namespace,
-        string $snippetPath,
-        string $path,
-    ): string {
+    /**
+     * @throws Exception
+     */
+    private function createActionRequest(): string
+    {
         $dir = 'ActionsRequests';
-        $classname = $entity . ucfirst($action) . 'Request';
+        $classname = $this->entity . $this->action . 'Request';
         $replacements = [
-            'entity_ns' => $namespace . '\\' . $dir,
-            'classname' => $entity . ucfirst($action) . 'Request'
+            'entity_ns' => $this->namespace . '\\' . $dir,
+            'classname' => $classname
         ];
 
+        $snippetPath = $this->getSnippetsPath('actions');
         return $this->createClassFromSnippet(
             $snippetPath . '/EntityActionRequest.php.snippet',
-            $path . "/" . $dir . "/" . $classname . '.php',
+            $this->path . '/' . $dir . '/' . $classname . '.php',
             $replacements
         );
     }
