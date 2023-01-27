@@ -50,6 +50,16 @@ final class EntityActionGeneratorCommand extends Command
     private string $routesPath;
     private string $namespace;
 
+    /**
+     * @var string[]
+     */
+    private array $filesCreated;
+
+    /**
+     * @var string[]
+     */
+    private array $filesEdited;
+
     public function __construct(Filesystem $filesystem)
     {
         parent::__construct();
@@ -93,11 +103,11 @@ final class EntityActionGeneratorCommand extends Command
                 }
             }
 
-            $files = $this->generateActionFiles();
+            $this->generateActionFiles();
             $this->addActionToController();
             $this->addActionRoute();
 
-            $this->renderReport($this->entityInput, $files);
+            $this->renderReport();
 
             return self::SUCCESS;
         } catch (Exception $e) {
@@ -137,6 +147,9 @@ final class EntityActionGeneratorCommand extends Command
         $this->path = $this->composeFullDestination($destinationPath, $this->entityInput);
         $this->routesPath = $this->composeFullDestination($routesDestination, $this->entityInput, $this->entity);
         $this->namespace = $this->composeFullNamespace($namespace, $this->entityInput);
+
+        $this->filesCreated = [];
+        $this->filesEdited = [];
     }
 
     private function controllerExists(): bool
@@ -157,15 +170,11 @@ final class EntityActionGeneratorCommand extends Command
     /**
      * @throws Exception
      */
-    private function generateActionFiles(): array
+    private function generateActionFiles(): void
     {
-        $files = [];
-
-        $files[] = $this->createActionPresentation();
-        $files[] = $this->createActionProcessor();
-        $files[] = $this->createActionRequest();
-
-        return $files;
+        $this->createActionPresentation();
+        $this->createActionProcessor();
+        $this->createActionRequest();
     }
 
     /**
@@ -251,6 +260,8 @@ final class EntityActionGeneratorCommand extends Command
     private function saveController($controller): void
     {
         $this->files->put($this->getControllerFile(), $controller);
+
+        $this->filesEdited[] = $this->getControllerFile();
     }
 
     /**
@@ -264,6 +275,8 @@ final class EntityActionGeneratorCommand extends Command
     private function saveRoutes($routes): void
     {
         $this->files->put($this->getRoutesFile(), $routes);
+
+        $this->filesEdited[] = $this->getRoutesFile();
     }
 
     private function getActionSnippet(): string
@@ -280,15 +293,20 @@ final class EntityActionGeneratorCommand extends Command
         return $this->files->get($file);
     }
 
-    private function renderReport(string $entity, array $files): void
+    private function renderReport(): void
     {
-        $this->output->success(
-            sprintf(
-                "The %s entity created. %d files were successfully generated!",
-                $entity,
-                count($files)
-            )
-        );
+        $this->output->success(sprintf("The %s action created.", $this->action));
+
+        $this->info(sprintf("%d files were successfully generated:", count($this->filesCreated)));
+        $this->renderReportTable($this->filesCreated);
+
+        $this->info(sprintf("%d files were edited:", count($this->filesEdited)));
+        $this->renderReportTable($this->filesEdited);
+    }
+
+    private function renderReportTable(array $files): void
+    {
+        $tableHeader = ['Type', 'Path'];
 
         $fileTypes = [
             'Controller',
@@ -297,9 +315,8 @@ final class EntityActionGeneratorCommand extends Command
             'Request',
             'Routes', // Default
         ];
-        $tableHeader = ['Type', 'Path'];
-        $rows = [];
 
+        $rows = [];
         foreach ($files as $file) {
             $type = 'Routes';
 
@@ -457,12 +474,14 @@ final class EntityActionGeneratorCommand extends Command
         if (false === file_put_contents($filepath, $content)) {
             throw new Exception(sprintf("Cannot create file [%s]", $filepath));
         }
+
+        $this->filesCreated[] = $filepath;
     }
 
     /**
      * @throws Exception
      */
-    private function createActionPresentation(): string
+    private function createActionPresentation(): void
     {
         $dir = 'ActionsPresentations';
         $classname = $this->entity . $this->action . 'Presentation';
@@ -471,18 +490,15 @@ final class EntityActionGeneratorCommand extends Command
             'classname' => $classname
         ];
 
-        $snippetPath = $this->getSnippetsPath('actions');
-        return $this->createClassFromSnippet(
-            $snippetPath . '/EntityActionPresentation.php.snippet',
-            $this->path . '/' . $dir . '/' . $classname . '.php',
-            $replacements
-        );
+        $snippetFile = $this->getSnippetsPath('actions') . '/EntityActionPresentation.php.snippet';
+        $classFile = $this->path . '/' . $dir . '/' . $classname . '.php';
+        $this->createClassFromSnippet($snippetFile, $classFile, $replacements);
     }
 
     /**
      * @throws Exception
      */
-    private function createActionProcessor(string $snippetActionName = 'Action'): string
+    private function createActionProcessor(string $snippetActionName = 'Action'): void
     {
         $dir = 'ActionsProcessors';
         $classname = $this->entity . $this->action . 'Processor';
@@ -491,18 +507,15 @@ final class EntityActionGeneratorCommand extends Command
             'classname' => $classname
         ];
 
-        $snippetPath = $this->getSnippetsPath('actions');
-        return $this->createClassFromSnippet(
-            $snippetPath . '/Entity' . $snippetActionName . 'Processor.php.snippet',
-            $this->path . '/' . $dir . '/' . $classname . '.php',
-            $replacements
-        );
+        $snippetFile = $this->getSnippetsPath('actions') . '/Entity' . $snippetActionName . 'Processor.php.snippet';
+        $classFile = $this->path . '/' . $dir . '/' . $classname . '.php';
+        $this->createClassFromSnippet($snippetFile, $classFile, $replacements);
     }
 
     /**
      * @throws Exception
      */
-    private function createActionRequest(): string
+    private function createActionRequest(): void
     {
         $dir = 'ActionsRequests';
         $classname = $this->entity . $this->action . 'Request';
@@ -511,11 +524,8 @@ final class EntityActionGeneratorCommand extends Command
             'classname' => $classname
         ];
 
-        $snippetPath = $this->getSnippetsPath('actions');
-        return $this->createClassFromSnippet(
-            $snippetPath . '/EntityActionRequest.php.snippet',
-            $this->path . '/' . $dir . '/' . $classname . '.php',
-            $replacements
-        );
+        $snippetFile = $this->getSnippetsPath('actions') . '/EntityActionRequest.php.snippet';
+        $classFile = $this->path . '/' . $dir . '/' . $classname . '.php';
+        $this->createClassFromSnippet($snippetFile, $classFile, $replacements);
     }
 }
