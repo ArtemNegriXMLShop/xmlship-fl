@@ -217,9 +217,10 @@ final class EntityActionGeneratorCommand extends Command
         $actionRoute = $this->processSnippet(
             $this->getRoutesActionSnippet(),
             [
-                'uri' => Str::snake($this->action, '-'),
+                'entity_singular_snake' => Str::snake(Str::singular($this->entity)),
+                'action_kebab' => Str::kebab($this->action),
                 'entity_controller' => $this->entity . 'Controller',
-                'action_method' => lcfirst($this->action),
+                'action_method' => Str::camel($this->action),
                 'route_name' => implode('.', array_map(
                     fn ($item) => Str::snake($item, '-'),
                     explode('/', $this->entityInput . '/' . $this->action)

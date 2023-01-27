@@ -7,12 +7,13 @@ use {entity_ns}\ActionsPresentations\{entity_name}{action_name}Presentation;
     public function {action_method_name}(
         {entity_name}{action_name}Request $request,
         {entity_name}{action_name}Processor $processor,
-        {entity_name}{action_name}Presentation $presentation
+        {entity_name}{action_name}Presentation $presentation,
+        int|string $id
     ): ErrorResponse|SuccessResponse {
         try {
             return new SuccessResponse(
                 $presentation->beautify(
-                    $processor->execute($request)
+                    $processor->execute($request, $id)
                 )
             );
         } catch (Throwable $exception) {
