@@ -17,7 +17,7 @@ use {entity_ns}\ActionsPresentations\{entity_name}{action_name}Presentation;
             );
         } catch (Throwable $exception) {
             return new ErrorResponse(
-                'An error occurred while trying to perform {action_name} on {entity_name_singular}',
+                'An error occurred while trying to perform {action_method_name} on {entity_name_singular}',
                 $exception
             );
         }
