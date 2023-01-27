@@ -85,7 +85,7 @@ final class EntityActionGeneratorCommand extends Command
             if (!$this->controllerExists()) {
                 $this->warn(sprintf("Controller for %s doesn't exist.", $this->entity));
                 if (!$this->confirm(sprintf("Create Controller for %s?", $this->entity))) {
-                    $this->info("Stopped because Controller is required to continue.");
+                    $this->warn("Stopped because Controller is required to continue.");
                     return self::SUCCESS;
                 }
 
