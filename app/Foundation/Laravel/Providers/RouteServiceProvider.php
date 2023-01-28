@@ -3,6 +3,7 @@
 namespace App\Foundation\Laravel\Providers;
 
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
+use App\EntryPoints\Http\Auth\AuthController;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -29,6 +30,9 @@ class RouteServiceProvider extends ServiceProvider
             Route::get('login', function () {
                 return redirect('/');
             })->name('login');
+
+            Route::prefix('api/app/auth')
+                ->post('/login', [AuthController::class, 'login'])->name('jwt.auth.login');
 
             Route::middleware(['AppAPI', 'auth:api'])
                 ->group(static function () {

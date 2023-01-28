@@ -17,6 +17,7 @@ docker-compose up
 
 ```bash
 ./d.sh php
+cp .env.example .env
 php artisan key:generate
 ```
 
