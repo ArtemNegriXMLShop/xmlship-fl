@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * Types - https://laravel.com/docs/9.x/migrations#available-column-types
+ * Methods: unique, nullable, default
+ */
 return [
     'table' => 'products',
     'fields' => [
