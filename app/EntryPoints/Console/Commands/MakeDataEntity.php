@@ -64,7 +64,7 @@ class MakeDataEntity extends Command
     private function inputParams()
     {
         while (true) {
-            $this->schema = $this->ask('Name schema from '.self::SCHEMAS_PATH);
+            $this->schema = Str::lower($this->ask('Name schema from '.self::SCHEMAS_PATH));
 
             if (empty($this->schema)) {
                 $this->error('Enter name schema');
@@ -83,10 +83,18 @@ class MakeDataEntity extends Command
         }
 
         while (true) {
-            $this->classname = Str::ucfirst($this->ask("Class name model"));
+            $this->classname = Str::ucfirst(Str::singular(Str::camel($this->ask("Class name model"))));
 
             if (empty($this->classname)) {
                 $this->error('Enter class name model');
+                continue;
+            } elseif (!preg_match('/[a-zA-Z]/', $this->classname)) {
+                $this->error(
+                    sprintf(
+                        "Invalid class name '%s'. Class name can contain uppercase and lowercase",
+                        $this->classname
+                    )
+                );
                 continue;
             } elseif (file_exists(base_path(self::MODELS_PATH. $this->classname . '.php'))) {
                 $this->error(
@@ -143,8 +151,7 @@ class MakeDataEntity extends Command
             if (array_key_exists('default', $params)) {
                 if ($params['type'] === 'boolean') {
                     $str .= '->default('.(boolval($params['default']) ? 'true' : 'false').')';
-                }
-                else {
+                } else {
                     $str .= '->default(\''.$params['default'].'\')';
                 }
             }
@@ -186,9 +193,11 @@ class MakeDataEntity extends Command
 
         $snippetContent = file_get_contents(base_path(self::SCHEMAS_PATH . '/snippets/model.snippet'));
 
-        //property, fillable
+        //property, methods, fillable
         $property = [];
+        $methods = [];
         $fillable = [];
+        $casts = [];
         foreach ($configs['fields'] as $name => $params) {
             //get type param by type fields
             switch ($params['type']) {
@@ -229,7 +238,15 @@ class MakeDataEntity extends Command
             }
             $property[] = ' * @property '.$type.' $'.$name;
 
-            $fillable[] = '        \''.$name.'\',';
+            $methods[] = ' * @method static Builder|'.$this->classname.' where'.Str::ucfirst(Str::singular(Str::camel($name))).'($value)';
+
+            if ($name !== 'id') {
+                $fillable[] = '        \''.$name.'\',';
+            }
+
+            if (in_array($type, ['int', 'float', 'bool']) && $name !== 'id') {
+                $casts[] = '        \'' . $name . '\' => \'' . $type . '\',';
+            }
         }
 
         //guarded
@@ -243,8 +260,16 @@ class MakeDataEntity extends Command
             'classname' => $this->classname,
             'table_name' => $configs['table'],
             'property' => implode("\n", $property),
+            'methods' => implode("\n", $methods),
             'guarded' => $guarded,
             'fillable' => 'protected $fillable = ['."\n".implode("\n", $fillable)."\n".'    ];',
+            'casts' => !empty($casts)
+                ? '/** @var string[] */
+    #[ArrayShape(['."\n"
+    .implode("\n", $casts).
+    "\n".'    ])]
+    protected $casts = [];'
+                : '',
         ];
 
         //placeholders
