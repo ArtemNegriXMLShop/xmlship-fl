@@ -3,6 +3,8 @@
 namespace App\Foundation\Laravel\Providers;
 
 
+use App\Application\Observers\UserObserver;
+use App\Data\Models\User;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        User::observe(UserObserver::class);
     }
 
     private function registerNewLaravelStructure(): void
