@@ -9,19 +9,16 @@ use App\EntryPoints\Http\Users\ActionsProcessors\{UsersCreateProcessor,
     UsersDestroyProcessor,
     UsersIndexProcessor,
     UsersShowProcessor,
-    AuthLoginProcessor,
     UsersUpdateProcessor};
 use App\EntryPoints\Http\Users\ActionsRequests\{UsersCreateRequest,
     UsersDestroyRequest,
     UsersIndexRequest,
     UsersShowRequest,
-    AuthLoginRequest,
     UsersUpdateRequest};
 use App\EntryPoints\Http\Users\ActionsPresentations\{UsersCreatePresentation,
     UsersDestroyPresentation,
     UsersIndexPresentation,
     UsersShowPresentation,
-    AuthLoginPresentation,
     UsersUpdatePresentation};
 use App\Foundation\Laravel\Responses\{
     SuccessResponse,
