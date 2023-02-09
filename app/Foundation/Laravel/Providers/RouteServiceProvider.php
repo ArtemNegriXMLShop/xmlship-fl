@@ -16,7 +16,7 @@ class RouteServiceProvider extends ServiceProvider
         $this->routes(function () {
             Route::get('login', static fn () => redirect('/'))->name('login');
 
-            Route::prefix('api/app')->group(static function () {
+            Route::middleware(['AppAPI'])->prefix('api/app')->group(static function () {
                 $routers = static::getFilesFromDirectory(app_path('EntryPoints/Routes/app'));
 
                 foreach ($routers as $file => $prefix) {
