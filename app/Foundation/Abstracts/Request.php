@@ -41,15 +41,12 @@ class Request extends FormRequest
      */
     protected function failedValidation(Validator $validator): void
     {
-        throw new HttpResponseException(
-            response()->json(
-                [
-                    'message' => 'Request is not valid',
-                    'errors' => $validator->errors(),
-                ],
-                Response::HTTP_UNPROCESSABLE_ENTITY
-            )
-        );
+        throw new HttpResponseException(response()->json([
+                'message' => 'Request is not valid',
+                'errors' => $validator->errors(),
+            ],
+            Response::HTTP_UNPROCESSABLE_ENTITY
+        ));
     }
 
 
@@ -69,10 +66,10 @@ class Request extends FormRequest
     {
         if ($key === 'id' && is_string($value)) {
             return xdecrypt($value);
-        } elseif (Str::endsWith($key, '_ids') && Arr::isList($value)) {
-            return Arr::map($value, function ($item) {
-                return xdecrypt($item);
-            });
+        }
+
+        if (Str::endsWith($key, '_ids') && Arr::isList($value)) {
+            return Arr::map($value, fn ($item) => xdecrypt($item));
         }
 
         return $value;

@@ -1,0 +1,102 @@
+{
+	"info": {
+		"_postman_id": "4bdf15ba-1304-47d7-ab48-08ab2d47e92c",
+		"name": "XML-auth",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "14206475"
+	},
+	"item": [
+		{
+			"name": "user-create",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		},
+		{
+			"name": "user-login",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:888/api/app/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "888",
+					"path": [
+						"api",
+						"app",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "user-logout",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:888/api/app/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "888",
+					"path": [
+						"api",
+						"app",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "new-password",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:888/api/app/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "888",
+					"path": [
+						"api",
+						"app",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "forgot-password",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:888/api/app/forgot-password",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "888",
+					"path": [
+						"api",
+						"app",
+						"forgot-password"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

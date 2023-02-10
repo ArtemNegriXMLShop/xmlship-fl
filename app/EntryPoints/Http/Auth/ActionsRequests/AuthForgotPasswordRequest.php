@@ -1,11 +1,11 @@
 <?php
 
-namespace App\EntryPoints\Http\Users\ActionsRequests;
+namespace App\EntryPoints\Http\Auth\ActionsRequests;
 
 use App\Foundation\Abstracts\Request;
 use App\Foundation\Interfaces\RequestInterface;
 
-class UsersStoreRequest extends Request implements RequestInterface
+class AuthForgotPasswordRequest extends Request implements RequestInterface
 {
     /**
      * Get the validation rules that apply to the request.
@@ -14,6 +14,8 @@ class UsersStoreRequest extends Request implements RequestInterface
      */
     public function rules(): array
     {
-        return [];
+        return [
+            'email' => 'required|email|exists:users,email',
+        ];
     }
 }
