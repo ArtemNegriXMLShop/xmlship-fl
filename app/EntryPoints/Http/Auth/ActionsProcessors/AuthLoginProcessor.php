@@ -6,13 +6,18 @@ use App\Data\Repositories\Interfaces\UsersRepositoryInterface;
 use App\Foundation\Abstracts\Processor;
 use App\Foundation\Interfaces\ProcessorInterface;
 use App\Foundation\Interfaces\RequestInterface;
+use Carbon\Factory as Carbon;
+use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthLoginProcessor extends Processor implements ProcessorInterface
 {
-    public function __construct(private readonly UsersRepositoryInterface $usersRepository)
-    {
+    public function __construct(
+        private readonly UsersRepositoryInterface $usersRepository,
+        private readonly Config $config,
+        private readonly Carbon $carbon,
+    ) {
     }
 
     /** @throws ValidationException */
@@ -28,8 +33,15 @@ class AuthLoginProcessor extends Processor implements ProcessorInterface
 
         $user->tokens()->delete();
 
+        $expiresIn = $this->config->get('sanctum.expiration');
+        $expiresAt = $this->carbon->now()->addSeconds($expiresIn);
+
+        $personalAccessToken = $user->createToken(name: 'personal-access-token', expiresAt: $expiresAt);
+
         return [
-            'token' => $user->createToken('personal-access-token')->plainTextToken,
+            'access_token' => $personalAccessToken->plainTextToken,
+            'token_type' =>  'bearer',
+            'expires_in' =>  $expiresIn,
         ];
     }
 }
