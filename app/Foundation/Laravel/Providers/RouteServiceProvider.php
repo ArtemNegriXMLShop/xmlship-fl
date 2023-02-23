@@ -9,50 +9,28 @@ use Illuminate\Support\Str;
 
 class RouteServiceProvider extends ServiceProvider
 {
-    /**
-     * The path to the "home" route for your application.
-     *
-     * Typically, users are redirected here after authentication.
-     *
-     * @var string
-     */
     public const HOME = '/home';
 
-    /**
-     * Define your route model bindings, pattern filters, and other route configuration.
-     *
-     * @return void
-     */
     public function boot()
     {
         $this->routes(function () {
-            Route::get('login', function () {
-                return redirect('/');
-            })->name('login');
+            Route::get('login', static fn () => redirect('/'))->name('login');
 
-            Route::middleware(['AppAPI', 'auth:api'])
-                ->group(static function () {
-                    foreach (static::getFilesFromDirectory(app_path('EntryPoints/Routes/app')) as $file => $prefix) {
-                        Route::prefix($prefix)
-                            ->prefix('api/app')
-                            ->namespace('\App\EntryPoints\Http')
-                            ->group($file);
-                    }
-                });
+            Route::middleware(['AppAPI'])->prefix('api/app')->group(static function () {
+                $routers = static::getFilesFromDirectory(app_path('EntryPoints/Routes/app'));
 
-            Route::middleware('ClientsAPI')
-                ->group(static function () {
-                    foreach (
-                        static::getFilesFromDirectory(
-                            app_path('EntryPoints/Routes/external')
-                        ) as $file => $prefix
-                    ) {
-                        Route::prefix($prefix)
-                            ->prefix('api/external')
-                            ->namespace('\App\EntryPoints\HttpExternal')
-                            ->group($file);
-                    }
-                });
+                foreach ($routers as $file => $prefix) {
+                    Route::namespace('\App\EntryPoints\Http')->group($file);
+                }
+            });
+
+            Route::middleware(['ClientsAPI'])->prefix('api/external')->group(static function () {
+                $routers = static::getFilesFromDirectory(app_path('EntryPoints/Routes/external'));
+
+                foreach ($routers as $file => $prefix) {
+                    Route::namespace('\App\EntryPoints\HttpExternal')->group($file);
+                }
+            });
         });
     }
 
@@ -62,10 +40,11 @@ class RouteServiceProvider extends ServiceProvider
         if (!File::isDirectory($dir)) {
             return [];
         }
+
         $files = File::allFiles($dir);
+
         foreach ($files as $file) {
-            $return[$file->getPathname()] =
-                trim(Str::replace([$dir, '.php'], '', $file->getPathname()), '/');
+            $return[$file->getPathname()] = trim(Str::replace([$dir, '.php'], '', $file->getPathname()), '/');
         }
 
         return $return;

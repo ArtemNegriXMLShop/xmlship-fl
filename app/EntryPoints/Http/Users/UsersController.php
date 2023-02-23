@@ -5,27 +5,21 @@ namespace App\EntryPoints\Http\Users;
 use Illuminate\Http\Response;
 use Throwable;
 use App\Foundation\Laravel\AppController;
-use App\EntryPoints\Http\Users\ActionsProcessors\{
+use App\EntryPoints\Http\Users\ActionsProcessors\{UsersCreateProcessor,
     UsersDestroyProcessor,
     UsersIndexProcessor,
     UsersShowProcessor,
-    UsersStoreProcessor,
-    UsersUpdateProcessor,
-};
-use App\EntryPoints\Http\Users\ActionsRequests\{
+    UsersUpdateProcessor};
+use App\EntryPoints\Http\Users\ActionsRequests\{UsersCreateRequest,
     UsersDestroyRequest,
     UsersIndexRequest,
     UsersShowRequest,
-    UsersStoreRequest,
-    UsersUpdateRequest,
-};
-use App\EntryPoints\Http\Users\ActionsPresentations\{
+    UsersUpdateRequest};
+use App\EntryPoints\Http\Users\ActionsPresentations\{UsersCreatePresentation,
     UsersDestroyPresentation,
     UsersIndexPresentation,
     UsersShowPresentation,
-    UsersStorePresentation,
-    UsersUpdatePresentation,
-};
+    UsersUpdatePresentation};
 use App\Foundation\Laravel\Responses\{
     SuccessResponse,
     ErrorResponse
@@ -52,24 +46,19 @@ class UsersController extends AppController
         }
     }
 
-    public function store(
-        UsersStoreRequest $request,
-        UsersStoreProcessor $processor,
-        UsersStorePresentation $presentation): ErrorResponse|SuccessResponse
-    {
+    public function create(
+        UsersCreateRequest $request,
+        UsersCreateProcessor $processor,
+        UsersCreatePresentation $presentation
+    ): ErrorResponse|SuccessResponse {
         try {
             return new SuccessResponse(
-                $presentation->beautify(
-                    $processor->execute($request)
-                ),
-                ['message' => 'User was stored successfully'],
+                $presentation->beautify($processor->execute($request)),
+                ['message' => 'User was created successfully'],
                 Response::HTTP_CREATED
             );
         } catch (Throwable $exception) {
-            return new ErrorResponse(
-                'An error occurred while trying to store the User',
-                $exception
-            );
+            return new ErrorResponse('An error occurred while trying to create the User', $exception);
         }
     }
 
