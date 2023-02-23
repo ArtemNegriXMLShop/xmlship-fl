@@ -3,19 +3,19 @@
 input="$1"
 case "${input}" in
 "php")
-  docker exec -it project-fl1.php-fpm /bin/bash
+  docker exec -it playground-xsh.php-fpm /bin/bash
   ;;
 "phproot")
-  docker exec -u 0 -it project-fl1.php-fpm /bin/bash
+  docker exec -u 0 -it playground-xsh.php-fpm /bin/bash
   ;;
 "db")
-  docker exec -it project-fl1.mysql /bin/bash
+  docker exec -it playground-xsh.mysql /bin/bash
   ;;
 *)
   echo "= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = ="
-  echo " ./hooks.sh php                                               ="
-  echo " ./hooks.sh phproot                                           ="
-  echo " ./hooks.sh db                                                ="
+  echo " ./d.sh php                                               ="
+  echo " ./d.sh phproot                                           ="
+  echo " ./d.sh db                                                ="
   echo "= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = ="
   exit 1
   ;;

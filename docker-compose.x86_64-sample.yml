@@ -2,7 +2,7 @@ version: '3.4'
 
 services:
   nginx:
-    container_name: "project-fl1.nginx"
+    container_name: "playground-xsh.nginx"
     hostname: "nginx"
     build: docker/nginx
     restart: unless-stopped
@@ -16,40 +16,23 @@ services:
       - ./:/var/www/html
     environment:
       NGINX_HOST_PATH: "/var/www/html/public"
-      NGINX_PHP_FPM_HOST: "project-fl1.php-fpm"
+      NGINX_PHP_FPM_HOST: "playground-xsh.php-fpm"
     logging:
       driver: "json-file"
       options:
         max-size: "256m"
         max-file: "10"
 
-  mysql:
-    container_name: "project-fl1.mysql"
-    hostname: "mysql"
-    image: arm64v8/mysql:8
-    platform: linux/arm64/v8
-    command: --default-authentication-plugin=mysql_native_password
-    tty: true
-    restart: always
-    ports:
-      - "3322:3306"
-    volumes:
-      - project_fl1_mysql_data:/var/lib/mysql
-      - ./docker/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
-    environment:
-      MYSQL_USER: project_user
-      MYSQL_PASSWORD: project_pass
-      MYSQL_DATABASE: project_data
-      MYSQL_ROOT_PASSWORD: rootAdmin
-
   php-fpm:
-    container_name: "project-fl1.php-fpm"
+    container_name: "playground-xsh.php-fpm"
     hostname: "php-fpm"
     build: docker/php-fpm
     restart: unless-stopped
     tty: true
     depends_on:
       - mysql
+      - redis
+      - mongodb
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
@@ -61,28 +44,64 @@ services:
       XDEBUG_CONFIG: "enable=${APP_DEBUG}"
       COMPOSER_MEMORY_LIMIT: -1
 
+  mysql:
+    container_name: "playground-xsh.mysql"
+    hostname: "mysql"
+    image: mysql:8
+    command: --default-authentication-plugin=mysql_native_password
+    tty: true
+    restart: always
+    ports:
+      - "3322:3306"
+    volumes:
+      - playground_xsh_mysql_data:/var/lib/mysql
+      - ./docker/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    environment:
+      MYSQL_USER: project_user
+      MYSQL_PASSWORD: project_pass
+      MYSQL_DATABASE: project_data
+      MYSQL_ROOT_PASSWORD: rootAdmin
+
   redis:
-    container_name: "project-fl1.redis"
+    container_name: "playground-xsh.redis"
     hostname: "redis"
     image: redis
     restart: unless-stopped
     volumes:
-      - project_fl1_redis_data:/data
+      - playground_xsh_redis_data:/data
 
+  # Database - Mongo DB
   mongodb:
-    container_name: "project-fl1.mongodb"
+    container_name: "playground-xsh.mongodb"
+    hostname: "mongodb"
     image: mongo:6
     environment:
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=rootAdmin
     volumes:
-      - project_fl1_mongodb_data:/data/db
       - ./docker/mongodb/docker-entrypoint-initdb.d/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - playground_xsh_mongodb_data:/data/db
     ports:
       - "27117:27017"
 
+  mongodb-express:
+    container_name: "playground-xsh.mongodbexpress"
+    hostname: "mongodbexpress"
+    image: mongo-express:latest
+    links:
+      - mongodb
+    depends_on:
+      - mongodb
+    environment:
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_AUTH_USERNAME: root
+      ME_CONFIG_MONGODB_AUTH_PASSWORD: rootAdmin
+    ports:
+      - "8098:8081"
+
   mailhog:
-    container_name: "project-fl1.mailhog"
+    container_name: "playground-xsh.mailhog"
     hostname: "mailhog"
     image: mailhog/mailhog
     logging:
@@ -92,9 +111,9 @@ services:
       - "9125:8025" # web ui
 
 volumes:
-  project_fl1_mysql_data:
+  playground_xsh_mysql_data:
     driver: local
-  project_fl1_redis_data:
+  playground_xsh_redis_data:
     driver: local
-  project_fl1_mongodb_data:
+  playground_xsh_mongodb_data:
     driver: local
